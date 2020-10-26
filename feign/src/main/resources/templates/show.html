@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="../js/jquery.min.js"></script>
+    <script src="../js/bootstrap/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="../js/bootstrap/css/bootstrap.min.css">
+    <script src="../js/bootstraps/bootstrap-paginator.js"></script>
+    <script src="../js/vue/vue.min.js"></script>
+</head>
+<body>
+<div id="app" class="container">
+    <h1>文章管理</h1>
+    <button type="button" class="btn btn-default" title="新建" data-toggle="modal" data-target="#editModal" onclick="xiu();"><i class="fa fa-file-o"></i> 新建</button>
+    <button type="button" class="btn btn-default" title="删除" onclick="delpi()"><i class="fa fa-trash-o"></i> 删除</button>
+    <button type="button" class="btn btn-default" title="刷新" onclick="window.location.reload();"><i class="fa fa-refresh"></i> 刷新</button>
+    <br>
+    <table class="table table-bordered">
+        <tr>
+            <th><input id="selall" type="checkbox"></th>
+            <th>用户ID</th>
+            <th>用户名称</th>
+            <th>用户密码</th>
+            <th>用户状态</th>
+            <th>操作</th>
+        </tr>
+        <tr v-for="user in userlist">
+            <td><input type="checkbox" name="che" :value="user.userId"></td>
+            <td>{{user.userId}}</td>
+            <td>{{user.userName}}</td>
+            <td>{{user.userPassword}}</td>
+            <td>{{user.userStatus==0?'登录':'未登录'}}</td>
+            <td>
+                <a data-toggle="modal" data-target="#editModal" @click="xiu(user.userId)">[编辑]</a> |
+                <a @click="shan(user.userId)">[删除]</a> |
+                <a @click="xiug(user.userId,user.userStatus)">[{{user.userStatus==1?'未登录':'登录'}}]</a>
+            </td>
+        </tr>
+    </table>
+    <div class="col-md-6">
+        <strong>当前第 {{currPage}}页,每页<select style="width:50px;" v-model="pageSize" @change="shuaxin()">
+            <option value="3">3</option>
+            <option value="6">6</option>
+            <option value="8">8</option>
+            <option value="10">10</option>
+        </select>条,共 {{totalPage}} 页.一共 {{total}} 条记录
+        </strong>
+    </div>
+    <div id="example" style="text-align: right"> <ul id="pageLimit"></ul> </div>
+</div>
+<!-- 编辑窗口 -->
+<div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog" id="ppa">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+                <h3 id="myModalLabel">添加用户</h3>
+            </div>
+            <form id="myforms" method="post">
+                <div class="modal-body">
+                    <table class="table table-bordered table-striped"  width="800px">
+                        <input class="form-control" name="userId" style="display:none" readonly="readonly" v-model="list.userId">
+                        <tr>
+                            <td>用户名称</td>
+                            <td><input class="form-control" type="text" name="userName" placeholder="账号" v-model="list.userName"></td>
+                        </tr>
+                        <tr>
+                            <td>用户密码</td>
+                            <td><input class="form-control" type="text" name="userPassword" placeholder="密码" v-model="list.userPassword"></td>
+                        </tr>
+                        <tr>
+                            <td>状态</td>
+                            <td><input type="radio" value="0" name="userStatus" v-model="list.userStatus">登录
+                                <input type="radio" value="1" name="userStatus" v-model="list.userStatus">未登录
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-default" onclick="insert()">保存</button>
+                    <button class="btn btn-default" data-dismiss="modal" aria-hidden="true">关闭</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    var vm = new Vue({
+        el: '#app',
+        data: {
+            userlist: "",
+            totalPage:"",
+            total:"",
+            currPage:"1",
+            pageSize:"10"
+        }
+    })
+    var vs = new Vue({
+        el: '#ppa',
+        data: {
+            list:''
+        }
+    })
+    function xiug(userId,userStatus){
+        $.ajax({
+            url:"/xiu",
+            type:"post",
+            data:{userId:userId,userStatus:userStatus},
+            success:function(){
+                searchUserList();
+            },
+        });
+    }
+    function shuaxin(){
+        searchUserList();
+    }
+    function shan(userId) {
+        $.ajax({
+            url:"/del",
+            type:"post",
+            data:{userId:userId},
+            success:function(){
+                alert("删除成功！")
+                searchUserList();
+            },
+        });
+    }
+    //修改
+    function xiu(userId){
+        $.ajax({
+            url:"/huix",
+            type:"post",
+            data:{userId:userId},
+            success:function(data){
+                vs.list=data;
+            },
+        });
+    }
+    //新增
+    function insert(){
+        $.ajax({
+            url:"/insert",
+            type:"post",
+            data:$("#myforms").serialize(),
+            datatype:'json',
+            success:function(){
+                searchUserList();
+            },
+        });
+    }
+    //批删
+    function delpi(){
+        var arr = document.getElementsByName("che");
+        var rid="";
+        for ( var i = 0; i < arr.length; i++) {
+            if (arr[i].checked) {
+                rid+=rid==""?arr[i].value:","+arr[i].value;
+            }
+        }
+        if (rid=="") {
+            alert("请至少选中一条！");
+            return;
+        }
+        $.ajax({
+            url:"/del",
+            type:"post",
+            data:{'userId':rid},
+            success:function(){
+                alert("删除成功")
+                searchUserList();
+            },
+        });
+    }
+    //分页查询
+    $(function() {
+        searchUserList();
+        $("#selall").click(
+            function(){
+                $("input[name='che']").attr("checked",this.checked);
+            })
+    })
+
+    function searchUserList() {
+        $.ajax({
+            type:"post",
+            url:"/select",
+            data:{"currPage":vm.currPage,"pageSize":vm.pageSize},
+            dataType:"json",
+            success: function(result) {
+                vm.userlist = result.rows;
+                vm.totalPage = result.totalPage;
+                vm.total = result.total;
+                vm.currPage = result.currPage;
+                vm.pageSize = result.pageSize;
+                setPage(result.currPage,result.totalPage,result.pageSize,searchUserList);
+            },
+            error : function() {
+                alert("系统错误，请联系管理员！");
+            }
+        })
+    }
+
+    /**
+     *
+     * @param pageCurrent 当前所在页
+     * @param pageSum 总页数
+     * @param callback 调用ajax
+     */
+    function setPage(pageCurrent, pageSum, pageSize, callback) {
+        $('#pageLimit').bootstrapPaginator({
+            currentPage: pageCurrent,//当前的请求页面。
+            totalPages: pageSum,//一共多少页。
+            size:"normal",//应该是页眉的大小。
+            bootstrapMajorVersion: 3,//bootstrap的版本要求。
+            alignment:"right",
+            numberOfPages:pageSize,//一页列出多少数据。
+            itemTexts: function (type, page, current) {//如下的代码是将页眉显示的中文显示我们自定义的中文。
+                switch (type) {
+                    case "first": return "首页";
+                    case "prev": return "上一页";
+                    case "next": return "下一页";
+                    case "last": return "末页";
+                    case "page": return page;
+                }
+            },
+            //当单击操作按钮的时候, 执行该函数, 调用ajax渲染页面
+            onPageClicked: function (event,originalEvent,type,page) {
+                // 把当前点击的页码赋值给currentPage, 调用ajax,渲染页面
+                vm.currPage = page;
+                callback && callback()
+            }
+        });
+    }
+</script>
+</body>
+</html>
